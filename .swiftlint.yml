@@ -1,0 +1,34 @@
+excluded:
+  - .build
+  - Package.swift
+
+disabled_rules:
+  - trailing_comma
+  - identifier_name
+  - force_try
+  - force_cast
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - contains_over_first_not_nil
+  - discouraged_optional_boolean
+  - implicit_return
+  - modifier_order
+  - overridden_super_call
+
+line_length:
+  warning: 130
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 800
+
+function_body_length:
+  warning: 60
+  error: 100

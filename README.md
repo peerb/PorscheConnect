@@ -1,5 +1,10 @@
 # PorscheConnect
 
+[![CI](https://github.com/peerb/PorscheConnect/actions/workflows/ci.yml/badge.svg)](https://github.com/peerb/PorscheConnect/actions/workflows/ci.yml)
+[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20iOS%20|%20watchOS%20|%20tvOS-blue.svg)](https://github.com/peerb/PorscheConnect)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Swift package for the Porsche Connect API. Reimplementation of [pyporscheconnectapi](https://github.com/cjne/pyporscheconnectapi) in native Swift.
 
 Works on macOS 13+, iOS 16+, watchOS 9+, and tvOS 16+. No external dependencies beyond Foundation and CryptoKit.
