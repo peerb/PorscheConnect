@@ -20,7 +20,7 @@ dependencies: [
 ## Quick Start
 
 ```swift
-import PorscheConnect
+import SwiftPorscheConnect
 
 let tokenStore = FileTokenStore(path: "\(NSHomeDirectory())/.porsche/tokens.json")
 let api = PorscheConnectAPI(email: "you@example.com", password: "***", tokenStore: tokenStore)

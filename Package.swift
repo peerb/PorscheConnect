@@ -11,17 +11,17 @@ let package = Package(
         .tvOS(.v16),
     ],
     products: [
-        .library(name: "PorscheConnect", targets: ["PorscheConnect"]),
+        .library(name: "SwiftPorscheConnect", targets: ["SwiftPorscheConnect"]),
     ],
     targets: [
         .target(
-            name: "PorscheConnect",
-            path: "Sources/PorscheConnect"
+            name: "SwiftPorscheConnect",
+            path: "Sources/SwiftPorscheConnect"
         ),
         .testTarget(
-            name: "PorscheConnectTests",
-            dependencies: ["PorscheConnect"],
-            path: "Tests/PorscheConnectTests"
+            name: "SwiftPorscheConnectTests",
+            dependencies: ["SwiftPorscheConnect"],
+            path: "Tests/SwiftPorscheConnectTests"
         ),
     ]
 )

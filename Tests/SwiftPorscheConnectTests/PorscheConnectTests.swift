@@ -1,5 +1,5 @@
 import XCTest
-@testable import PorscheConnect
+@testable import SwiftPorscheConnect
 
 // MARK: - Captcha Extraction
 
