@@ -1,4 +1,4 @@
-# Contributing to PorscheConnect
+# Contributing to SwiftPorscheConnect
 
 Thanks for your interest in contributing!
 

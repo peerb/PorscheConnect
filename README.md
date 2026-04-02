@@ -1,8 +1,8 @@
-# PorscheConnect
+# SwiftPorscheConnect
 
-[![CI](https://github.com/peerb/PorscheConnect/actions/workflows/ci.yml/badge.svg)](https://github.com/peerb/PorscheConnect/actions/workflows/ci.yml)
+[![CI](https://github.com/peerb/SwiftPorscheConnect/actions/workflows/ci.yml/badge.svg)](https://github.com/peerb/SwiftPorscheConnect/actions/workflows/ci.yml)
 [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20iOS%20|%20watchOS%20|%20tvOS-blue.svg)](https://github.com/peerb/PorscheConnect)
+[![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20iOS%20|%20watchOS%20|%20tvOS-blue.svg)](https://github.com/peerb/SwiftPorscheConnect)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Swift package for the Porsche Connect API. Reimplementation of [pyporscheconnectapi](https://github.com/cjne/pyporscheconnectapi) in native Swift.
@@ -13,7 +13,7 @@ Works on macOS 13+, iOS 16+, watchOS 9+, and tvOS 16+. No external dependencies 
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/peerb/PorscheConnect.git", from: "1.0.0"),
+    .package(url: "https://github.com/peerb/SwiftPorscheConnect.git", from: "0.1.0"),
 ]
 ```
 
@@ -139,6 +139,10 @@ This library is **not thread-safe**. Avoid calling API methods concurrently from
 ## Credits
 
 Swift reimplementation based on the protocol and API knowledge from [pyporscheconnectapi](https://github.com/cjne/pyporscheconnectapi) by Johan Isacsson, licensed under MIT.
+
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or connected to Porsche AG.
 
 ## License
 
