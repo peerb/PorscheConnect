@@ -140,8 +140,8 @@ public class PorscheConnectAPI {
         var measurements: [String: PCMeasurementValue] = [:]
         if let status = try? await getStoredOverview(vin: selected.vin),
            let mList = status.measurements {
-            for m in mList where m.status.isEnabled && m.value != nil {
-                measurements[m.key] = m.value!
+            for m in mList where m.status.isEnabled {
+                if let value = m.value { measurements[m.key] = value }
             }
         }
 
@@ -160,7 +160,10 @@ public class PorscheConnectAPI {
     private func get<T: Decodable>(_ path: String) async throws -> T {
         let accessToken = try await auth.ensureValidToken()
 
-        var request = URLRequest(url: URL(string: "\(Porsche.apiBaseURL)\(path)")!)
+        guard let url = URL(string: "\(Porsche.apiBaseURL)\(path)") else {
+            throw PorscheConnectError.authFailed("Invalid API URL: \(path)")
+        }
+        var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue(Porsche.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(Porsche.xClientID, forHTTPHeaderField: "X-Client-ID")

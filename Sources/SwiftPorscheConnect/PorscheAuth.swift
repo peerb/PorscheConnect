@@ -54,7 +54,10 @@ public class PorscheAuth {
     @discardableResult
     public func ensureValidToken() async throws -> String {
         if !token.needsFullLogin && !token.isExpired {
-            return token.accessToken!
+            guard let accessToken = token.accessToken else {
+            throw PorscheConnectError.authFailed("No access token after authentication")
+        }
+        return accessToken
         }
 
         // Try refresh first
@@ -62,7 +65,10 @@ public class PorscheAuth {
             if let refreshed = try? await refreshAccessToken(refreshToken) {
                 token.update(from: refreshed)
                 tokenStore?.save(token)
-                return token.accessToken!
+                guard let accessToken = token.accessToken else {
+            throw PorscheConnectError.authFailed("No access token after authentication")
+        }
+        return accessToken
             }
         }
 
@@ -71,7 +77,10 @@ public class PorscheAuth {
         let tokenData = try await exchangeCodeForToken(code)
         token.update(from: tokenData)
         tokenStore?.save(token)
-        return token.accessToken!
+        guard let accessToken = token.accessToken else {
+            throw PorscheConnectError.authFailed("No access token after authentication")
+        }
+        return accessToken
     }
 
     /// Resume authentication after solving a captcha.
@@ -86,7 +95,10 @@ public class PorscheAuth {
         let tokenData = try await exchangeCodeForToken(authCode)
         token.update(from: tokenData)
         tokenStore?.save(token)
-        return token.accessToken!
+        guard let accessToken = token.accessToken else {
+            throw PorscheConnectError.authFailed("No access token after authentication")
+        }
+        return accessToken
     }
 
     /// Returns the current token (e.g., for manual persistence).
@@ -132,7 +144,9 @@ public class PorscheAuth {
     }
 
     private func getAuthCodeFromResume(resumePath: String) async throws -> String {
-        let resumeURL = URL(string: "https://\(Porsche.authServer)\(resumePath)")!
+        guard let resumeURL = URL(string: "https://\(Porsche.authServer)\(resumePath)") else {
+            throw PorscheConnectError.authFailed("Invalid resume URL")
+        }
         let (_, resumeResponse) = try await session.data(for: authRequest(url: resumeURL))
 
         guard let httpResumeResponse = resumeResponse as? HTTPURLResponse,
@@ -161,7 +175,9 @@ public class PorscheAuth {
             body["captcha"] = captchaCode
         }
 
-        let identifierURL = URL(string: "https://\(Porsche.authServer)/u/login/identifier?state=\(state)")!
+        guard let identifierURL = URL(string: "https://\(Porsche.authServer)/u/login/identifier?state=\(state.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? state)") else {
+            throw PorscheConnectError.authFailed("Invalid identifier URL")
+        }
         let (identifierData, identifierResponse) = try await session.data(
             for: authFormRequest(url: identifierURL, body: body)
         )
@@ -188,7 +204,9 @@ public class PorscheAuth {
             "action": "default",
         ]
 
-        let passwordURL = URL(string: "https://\(Porsche.authServer)/u/login/password?state=\(state)")!
+        guard let passwordURL = URL(string: "https://\(Porsche.authServer)/u/login/password?state=\(state.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? state)") else {
+            throw PorscheConnectError.authFailed("Invalid password URL")
+        }
         let (_, passwordResponse) = try await session.data(
             for: authFormRequest(url: passwordURL, body: passwordBody)
         )
@@ -282,8 +300,9 @@ public class PorscheAuth {
         }
 
         // Method 2: <img alt="captcha" src="...">
-        if let match = html.range(of: #"<img[^>]*alt="captcha"[^>]*src="([^"]*)"#, options: .regularExpression) {
-            let srcStart = html.range(of: #"src=""#, options: .literal, range: match)!.upperBound
+        if let match = html.range(of: #"<img[^>]*alt="captcha"[^>]*src="([^"]*)"#, options: .regularExpression),
+           let srcRange = html.range(of: #"src=""#, options: .literal, range: match) {
+            let srcStart = srcRange.upperBound
             let srcEnd = html[srcStart...].firstIndex(of: "\"") ?? srcStart
             return String(html[srcStart..<srcEnd])
         }
@@ -320,9 +339,9 @@ public class PorscheAuth {
     }
 
     private func buildURL(_ base: String, params: [String: String]) -> URL {
-        var components = URLComponents(string: base)!
+        var components = URLComponents(string: base) ?? URLComponents()
         components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
-        return components.url!
+        return components.url ?? URL(string: base)!
     }
 
     private func urlEncode(_ params: [String: Any]) -> String {

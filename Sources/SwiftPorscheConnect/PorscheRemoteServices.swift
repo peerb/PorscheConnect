@@ -169,7 +169,9 @@ public class PorscheRemoteServices {
 
     private func postCommand(json: [String: Any]) async throws -> [String: Any] {
         let accessToken = try await auth.ensureValidToken()
-        let url = URL(string: "\(Porsche.apiBaseURL)/connect/v1/vehicles/\(vin)/commands")!
+        guard let url = URL(string: "\(Porsche.apiBaseURL)/connect/v1/vehicles/\(vin)/commands") else {
+            throw PorscheConnectError.authFailed("Invalid command URL")
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -198,7 +200,9 @@ public class PorscheRemoteServices {
             try await Task.sleep(nanoseconds: UInt64(Porsche.commandPollingInterval * 1_000_000_000))
 
             let accessToken = try await auth.ensureValidToken()
-            let url = URL(string: "\(Porsche.apiBaseURL)/connect/v1/vehicles/\(vin)/commands/\(statusId)")!
+            guard let url = URL(string: "\(Porsche.apiBaseURL)/connect/v1/vehicles/\(vin)/commands/\(statusId)") else {
+                throw PorscheConnectError.authFailed("Invalid status URL")
+            }
 
             var request = URLRequest(url: url)
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
