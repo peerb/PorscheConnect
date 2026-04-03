@@ -78,9 +78,9 @@ public struct PorscheToken: Codable {
 
     /// Merge fields from another token (e.g., a refresh response that only contains a new access token).
     public mutating func update(from other: PorscheToken) {
-        if let at = other.accessToken { accessToken = at }
-        if let rt = other.refreshToken { refreshToken = rt }
-        if let ei = other.expiresIn { expiresIn = ei }
+        if let newAccessToken = other.accessToken { accessToken = newAccessToken }
+        if let newRefreshToken = other.refreshToken { refreshToken = newRefreshToken }
+        if let newExpiresIn = other.expiresIn { expiresIn = newExpiresIn }
         updateExpiry()
     }
 
@@ -262,23 +262,23 @@ struct AnyCodable: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if let b = try? container.decode(Bool.self) { value = b }
-        else if let i = try? container.decode(Int.self) { value = i }
-        else if let d = try? container.decode(Double.self) { value = d }
-        else if let s = try? container.decode(String.self) { value = s }
-        else if let a = try? container.decode([AnyCodable].self) { value = a.map(\.value) }
-        else if let o = try? container.decode([String: AnyCodable].self) { value = o.mapValues(\.value) }
+        if let boolValue = try? container.decode(Bool.self) { value = boolValue }
+        else if let intValue = try? container.decode(Int.self) { value = intValue }
+        else if let doubleValue = try? container.decode(Double.self) { value = doubleValue }
+        else if let stringValue = try? container.decode(String.self) { value = stringValue }
+        else if let arrayValue = try? container.decode([AnyCodable].self) { value = arrayValue.map(\.value) }
+        else if let objectValue = try? container.decode([String: AnyCodable].self) { value = objectValue.mapValues(\.value) }
         else { value = NSNull() }
     }
 
     var intValue: Int? {
-        if let i = value as? Int { return i }
-        if let d = value as? Double { return Int(d) }
+        if let intVal = value as? Int { return intVal }
+        if let doubleVal = value as? Double { return Int(doubleVal) }
         return nil
     }
     var doubleValue: Double? {
-        if let d = value as? Double { return d }
-        if let i = value as? Int { return Double(i) }
+        if let doubleVal = value as? Double { return doubleVal }
+        if let intVal = value as? Int { return Double(intVal) }
         return nil
     }
     var stringValue: String? { value as? String }

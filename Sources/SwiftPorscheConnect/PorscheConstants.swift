@@ -30,6 +30,12 @@ enum Porsche {
     /// Seconds between remote command status polls.
     static let commandPollingInterval: TimeInterval = 1
 
+    /// Minimum allowed target state of charge percentage.
+    static let minimumTargetSOC = 25
+
+    /// Maximum allowed target state of charge percentage.
+    static let maximumTargetSOC = 100
+
     /// OAuth2 scopes requested during authentication.
     static let scopes = [
         "openid", "profile", "email", "offline_access",

@@ -54,10 +54,7 @@ public class PorscheAuth {
     @discardableResult
     public func ensureValidToken() async throws -> String {
         if !token.needsFullLogin && !token.isExpired {
-            guard let accessToken = token.accessToken else {
-            throw PorscheConnectError.authFailed("No access token after authentication")
-        }
-        return accessToken
+            return try validAccessToken()
         }
 
         // Try refresh first
@@ -65,10 +62,7 @@ public class PorscheAuth {
             if let refreshed = try? await refreshAccessToken(refreshToken) {
                 token.update(from: refreshed)
                 tokenStore?.save(token)
-                guard let accessToken = token.accessToken else {
-            throw PorscheConnectError.authFailed("No access token after authentication")
-        }
-        return accessToken
+                return try validAccessToken()
             }
         }
 
@@ -77,10 +71,7 @@ public class PorscheAuth {
         let tokenData = try await exchangeCodeForToken(code)
         token.update(from: tokenData)
         tokenStore?.save(token)
-        guard let accessToken = token.accessToken else {
-            throw PorscheConnectError.authFailed("No access token after authentication")
-        }
-        return accessToken
+        return try validAccessToken()
     }
 
     /// Resume authentication after solving a captcha.
@@ -95,10 +86,7 @@ public class PorscheAuth {
         let tokenData = try await exchangeCodeForToken(authCode)
         token.update(from: tokenData)
         tokenStore?.save(token)
-        guard let accessToken = token.accessToken else {
-            throw PorscheConnectError.authFailed("No access token after authentication")
-        }
-        return accessToken
+        return try validAccessToken()
     }
 
     /// Returns the current token (e.g., for manual persistence).
@@ -120,7 +108,7 @@ public class PorscheAuth {
             "scope": Porsche.scopes,
             "state": "porscheconnect",
         ]
-        let url = buildURL(Porsche.authorizeURL, params: params)
+        let url = try buildURL(Porsche.authorizeURL, params: params)
         let (_, response) = try await session.data(for: authRequest(url: url))
 
         guard let httpResponse = response as? HTTPURLResponse,
@@ -236,21 +224,7 @@ public class PorscheAuth {
             "code": code,
             "redirect_uri": Porsche.redirectURI,
         ]
-
-        var request = URLRequest(url: URL(string: Porsche.tokenURL)!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue(Porsche.userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(Porsche.xClientID, forHTTPHeaderField: "X-Client-ID")
-        request.httpBody = urlEncode(body).data(using: .utf8)
-
-        let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200...299).contains(status) else {
-            throw PorscheConnectError.authFailed("Token exchange failed with HTTP \(status)")
-        }
-
-        return try JSONDecoder().decode(PorscheToken.self, from: data)
+        return try await postTokenRequest(body: body, errorContext: "Token exchange")
     }
 
     private func refreshAccessToken(_ refreshToken: String) async throws -> PorscheToken {
@@ -260,21 +234,29 @@ public class PorscheAuth {
             "refresh_token": refreshToken,
         ]
 
-        var request = URLRequest(url: URL(string: Porsche.tokenURL)!)
+        do {
+            return try await postTokenRequest(body: body, errorContext: "Token refresh")
+        } catch PorscheConnectError.httpError(403, _) {
+            throw PorscheConnectError.tokenRefreshFailed
+        }
+    }
+
+    private func postTokenRequest(body: [String: String], errorContext: String) async throws -> PorscheToken {
+        guard let url = URL(string: Porsche.tokenURL) else {
+            throw PorscheConnectError.authFailed("Invalid token URL")
+        }
+
+        var request = authRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue(Porsche.userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(Porsche.xClientID, forHTTPHeaderField: "X-Client-ID")
         request.httpBody = urlEncode(body).data(using: .utf8)
 
         let (data, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-        if status == 403 {
-            throw PorscheConnectError.tokenRefreshFailed
-        }
-        guard (200...299).contains(status) else {
-            throw PorscheConnectError.authFailed("Token refresh failed with HTTP \(status)")
+        guard (200...299).contains(statusCode) else {
+            let responseBody = String(data: data, encoding: .utf8) ?? ""
+            throw PorscheConnectError.httpError(statusCode, String(responseBody.prefix(500)))
         }
 
         return try JSONDecoder().decode(PorscheToken.self, from: data)
@@ -321,6 +303,16 @@ public class PorscheAuth {
         return components.queryItems?.first(where: { $0.name == name })?.value
     }
 
+    // MARK: - Token Helpers
+
+    /// Returns the current access token or throws if none exists.
+    private func validAccessToken() throws -> String {
+        guard let accessToken = token.accessToken else {
+            throw PorscheConnectError.authFailed("No access token after authentication")
+        }
+        return accessToken
+    }
+
     // MARK: - HTTP Helpers
 
     private func authRequest(url: URL) -> URLRequest {
@@ -338,17 +330,20 @@ public class PorscheAuth {
         return request
     }
 
-    private func buildURL(_ base: String, params: [String: String]) -> URL {
+    private func buildURL(_ base: String, params: [String: String]) throws -> URL {
         var components = URLComponents(string: base) ?? URLComponents()
         components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
-        return components.url ?? URL(string: base)!
+        guard let url = components.url else {
+            throw PorscheConnectError.authFailed("Invalid URL: \(base)")
+        }
+        return url
     }
 
     private func urlEncode(_ params: [String: Any]) -> String {
         params.map { key, value in
-            let v = "\(value)"
-            let escaped = v.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? v
-            return "\(key)=\(escaped)"
+            let stringValue = "\(value)"
+            let encoded = stringValue.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? stringValue
+            return "\(key)=\(encoded)"
         }.joined(separator: "&")
     }
 }

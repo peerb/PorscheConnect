@@ -44,41 +44,41 @@ public class PorscheConnectAPI {
     /// Fetch the cached vehicle status. Does **not** wake the car.
     /// - Parameter vin: Vehicle Identification Number.
     public func getStoredOverview(vin: String) async throws -> PCVehicleStatus {
-        let mf = Porsche.measurements.map { "mf=\($0)" }.joined(separator: "&")
-        return try await get("/connect/v1/vehicles/\(vin)?\(mf)")
+        let measurements = measurementQuery(keys: Porsche.measurements)
+        return try await get("/connect/v1/vehicles/\(vin)?\(measurements)")
     }
 
     /// Fetch live vehicle status. **Wakes the car** to get real-time data.
     /// - Parameter vin: Vehicle Identification Number.
     public func getCurrentOverview(vin: String) async throws -> PCVehicleStatus {
-        let mf = Porsche.measurements.map { "mf=\($0)" }.joined(separator: "&")
+        let measurements = measurementQuery(keys: Porsche.measurements)
         let wakeup = "&wakeUpJob=\(UUID().uuidString)"
-        return try await get("/connect/v1/vehicles/\(vin)?\(mf)\(wakeup)")
+        return try await get("/connect/v1/vehicles/\(vin)?\(measurements)\(wakeup)")
     }
 
     /// Fetch trip statistics for a vehicle.
     /// - Parameter vin: Vehicle Identification Number.
     public func getTripStatistics(vin: String) async throws -> PCVehicleStatus {
-        let trips = [
+        let tripKeys = [
             "TRIP_STATISTICS_CYCLIC", "TRIP_STATISTICS_LONG_TERM",
             "TRIP_STATISTICS_LONG_TERM_HISTORY", "TRIP_STATISTICS_SHORT_TERM_HISTORY",
             "TRIP_STATISTICS_CYCLIC_HISTORY", "TRIP_STATISTICS_SHORT_TERM",
         ]
-        let mf = trips.map { "mf=\($0)" }.joined(separator: "&")
-        return try await get("/connect/v1/vehicles/\(vin)?\(mf)")
+        let measurements = measurementQuery(keys: tripKeys)
+        return try await get("/connect/v1/vehicles/\(vin)?\(measurements)")
     }
 
     /// Fetch vehicle capabilities (available measurements and commands).
     /// - Parameter vin: Vehicle Identification Number.
     public func getCapabilities(vin: String) async throws -> PCVehicleStatus {
-        let mf = Porsche.measurements.map { "mf=\($0)" }.joined(separator: "&")
-        let commands = [
+        let measurements = measurementQuery(keys: Porsche.measurements)
+        let commandKeys = [
             "HONK_FLASH", "LOCK", "UNLOCK", "REMOTE_CLIMATIZER_START",
             "REMOTE_CLIMATIZER_STOP", "DIRECT_CHARGING_START", "DIRECT_CHARGING_STOP",
             "CHARGING_SETTINGS_EDIT", "CHARGING_PROFILES_EDIT",
         ]
-        let cf = commands.map { "cf=\($0)" }.joined(separator: "&")
-        return try await get("/connect/v1/vehicles/\(vin)?\(mf)&\(cf)")
+        let commands = commandQuery(keys: commandKeys)
+        return try await get("/connect/v1/vehicles/\(vin)?\(measurements)&\(commands)")
     }
 
     // MARK: - Remote Services
@@ -132,30 +132,38 @@ public class PorscheConnectAPI {
             selected = vehicles[0]
         }
 
-        var pictureMap: [String: String] = [:]
-        if let pics = try? await getPictures(vin: selected.vin) {
-            for p in pics { pictureMap[p.view] = p.url }
+        var picturesByView: [String: String] = [:]
+        if let pictures = try? await getPictures(vin: selected.vin) {
+            for picture in pictures { picturesByView[picture.view] = picture.url }
         }
 
-        var measurements: [String: PCMeasurementValue] = [:]
+        var measurementsByKey: [String: PCMeasurementValue] = [:]
         if let status = try? await getStoredOverview(vin: selected.vin),
-           let mList = status.measurements {
-            for m in mList where m.status.isEnabled {
-                if let value = m.value { measurements[m.key] = value }
+           let vehicleMeasurements = status.measurements {
+            for measurement in vehicleMeasurements where measurement.status.isEnabled {
+                if let value = measurement.value { measurementsByKey[measurement.key] = value }
             }
         }
 
         return VehicleData(
             vehicles: vehicles, selectedVehicle: selected,
-            batteryLevel: measurements["BATTERY_LEVEL"]?.int(forKey: "percent"),
-            rangeKm: extractKm(from: measurements, keys: ["E_RANGE", "RANGE"]),
-            mileageKm: extractKm(from: measurements, keys: ["MILEAGE"]),
-            isLocked: measurements["LOCK_STATE_VEHICLE"]?.bool(forKey: "isLocked"),
-            pictures: pictureMap, measurements: measurements
+            batteryLevel: measurementsByKey["BATTERY_LEVEL"]?.int(forKey: "percent"),
+            rangeKm: extractKm(from: measurementsByKey, keys: ["E_RANGE", "RANGE"]),
+            mileageKm: extractKm(from: measurementsByKey, keys: ["MILEAGE"]),
+            isLocked: measurementsByKey["LOCK_STATE_VEHICLE"]?.bool(forKey: "isLocked"),
+            pictures: picturesByView, measurements: measurementsByKey
         )
     }
 
     // MARK: - Internal Helpers
+
+    private func measurementQuery(keys: [String]) -> String {
+        keys.map { "mf=\($0)" }.joined(separator: "&")
+    }
+
+    private func commandQuery(keys: [String]) -> String {
+        keys.map { "cf=\($0)" }.joined(separator: "&")
+    }
 
     private func get<T: Decodable>(_ path: String) async throws -> T {
         let accessToken = try await auth.ensureValidToken()
@@ -183,12 +191,12 @@ public class PorscheConnectAPI {
     /// Extract a kilometer value from measurements, trying multiple keys and nested field names.
     func extractKm(from measurements: [String: PCMeasurementValue], keys: [String]) -> Int? {
         for key in keys {
-            if let v = measurements[key] {
-                if let km = v.int(forKey: "kilometers") ?? v.int(forKey: "value") ?? v.int(forKey: "distance") {
-                    return km
+            if let measurement = measurements[key] {
+                if let intKm = measurement.int(forKey: "kilometers") ?? measurement.int(forKey: "value") ?? measurement.int(forKey: "distance") {
+                    return intKm
                 }
-                if let d = v.double(forKey: "kilometers") ?? v.double(forKey: "value") ?? v.double(forKey: "distance") {
-                    return Int(d)
+                if let doubleKm = measurement.double(forKey: "kilometers") ?? measurement.double(forKey: "value") ?? measurement.double(forKey: "distance") {
+                    return Int(doubleKm)
                 }
             }
         }

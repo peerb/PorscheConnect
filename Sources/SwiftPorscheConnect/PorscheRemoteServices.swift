@@ -76,8 +76,11 @@ public class PorscheRemoteServices {
     ///   - frontRight: Enable front-right climate zone.
     ///   - rearLeft: Enable rear-left climate zone.
     ///   - rearRight: Enable rear-right climate zone.
+    /// Default climate target temperature in Kelvin (20°C).
+    public static let defaultClimateTemperatureKelvin: Double = 293.15
+
     public func climatizeOn(
-        targetTemperature: Double = 293.15,
+        targetTemperature: Double = defaultClimateTemperatureKelvin,
         frontLeft: Bool = false,
         frontRight: Bool = false,
         rearLeft: Bool = false,
@@ -112,7 +115,7 @@ public class PorscheRemoteServices {
     /// Set the target state of charge (SOC) for the high-voltage battery.
     /// - Parameter soc: Target percentage, clamped to 25–100%.
     public func setTargetSOC(_ soc: Int) async throws -> RemoteCommandStatus {
-        let clamped = min(max(soc, 25), 100)
+        let clamped = min(max(soc, Porsche.minimumTargetSOC), Porsche.maximumTargetSOC)
         return try await sendCommand(key: "CHARGING_SETTINGS_EDIT", payload: [
             "targetSoc": clamped, "spin": NSNull(),
         ])
